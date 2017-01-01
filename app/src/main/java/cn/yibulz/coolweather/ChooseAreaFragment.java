@@ -66,6 +66,11 @@ public class ChooseAreaFragment extends Fragment {
      * 市列表
      */
     private List<City> cityList;
+    /**
+     * 县列表
+     */
+    private List<County> countyList;
+
     private Province selectedProvince;
 
     private City selectedCity;
@@ -93,6 +98,19 @@ public class ChooseAreaFragment extends Fragment {
             public void onItemClick(AdapterView<?> view, View view1, int position, long l) {
                 if (currentLevel == LEVEL_PROVINCE) {
                     selectedProvince = provinceList.get(position);
+                    queryCities();
+                } else if (currentLevel == LEVEL_CITY) {
+                    selectedCity = cityList.get(position);
+                    queryCounties();
+                }
+            }
+        });
+        backButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (currentLevel == LEVEL_CITY) {
+                    queryProvinces();
+                } else if (currentLevel == LEVEL_COUNTY) {
                     queryCities();
                 }
             }
@@ -139,6 +157,28 @@ public class ChooseAreaFragment extends Fragment {
         }
     }
 
+    private void queryCounties() {
+        titleText.setText(selectedCity.getCityName());
+        backButton.setVisibility(View.VISIBLE);
+        countyList = DataSupport.where("cityid = ?", String.valueOf(selectedCity.getId()))
+                .find(County.class);
+        if (countyList.size() > 0) {
+            dataList.clear();
+            for (County county : countyList) {
+                dataList.add(county.getCountyName());
+            }
+            adapter.notifyDataSetChanged();
+            listView.setSelection(0);
+            currentLevel = LEVEL_COUNTY;
+        } else {
+            int provinceCode = selectedProvince.getProvinceCode();
+            int cityCode = selectedCity.getCityCode();
+            String address = "http://guolin.tech/api/china/" +
+                    provinceCode + "/" + cityCode;
+            queryFromServer(address, "county");
+        }
+    }
+
     /**
      * 根据address和type 获取服务器数据
      */
@@ -179,7 +219,7 @@ public class ChooseAreaFragment extends Fragment {
                             }else if ("city".equals(type)) {
                                 queryCities();
                             } else if ("county".equals(type)) {
-
+                                queryCounties();
                             }
                         }
                     });
