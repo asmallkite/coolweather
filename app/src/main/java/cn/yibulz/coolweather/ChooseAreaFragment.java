@@ -8,6 +8,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
@@ -56,8 +57,15 @@ public class ChooseAreaFragment extends Fragment {
 
     private List<String> dataList = new ArrayList<>();
 
+    /**
+     * 省列表
+     */
     private List<Province> provinceList;
 
+    /**
+     * 市列表
+     */
+    private List<City> cityList;
     private Province selectedProvince;
 
     private City selectedCity;
@@ -80,6 +88,15 @@ public class ChooseAreaFragment extends Fragment {
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> view, View view1, int position, long l) {
+                if (currentLevel == LEVEL_PROVINCE) {
+                    selectedProvince = provinceList.get(position);
+                    queryCities();
+                }
+            }
+        });
         queryProvinces();
     }
 
@@ -99,7 +116,27 @@ public class ChooseAreaFragment extends Fragment {
             String address = "http://guolin.tech/api/china";
             queryFromServer(address, "province");
         }
+    }
 
+    private void queryCities() {
+        titleText.setText(selectedProvince.getProvinceName());
+        backButton.setVisibility(View.VISIBLE);
+        cityList = DataSupport.where("provinceid = ?", String.valueOf(selectedProvince.getId()))
+                .find(City.class);
+        if (cityList.size() > 0) {
+            dataList.clear();
+            for (City city : cityList) {
+                dataList.add(city.getCityName());
+            }
+            adapter.notifyDataSetChanged();
+            listView.setSelection(0);
+            currentLevel = LEVEL_CITY;
+        } else {
+            int provinceCode = selectedProvince.getProvinceCode();
+            String address = "http://guolin.tech/api/china/" +
+                    provinceCode;
+            queryFromServer(address, "city");
+        }
     }
 
     /**
@@ -127,6 +164,7 @@ public class ChooseAreaFragment extends Fragment {
                     result = Utility.handleProvinceResponse(responseText);
                 } else if ("city".equals(type)) {
                     result = Utility.handleCityResponse(responseText, selectedProvince.getId());
+                    Log.d(TAG, "onResponse: " + responseText);
                 } else if ("county".equals(type)) {
                     result = Utility.handleCountyResponse(responseText, selectedCity.getId());
                 }
@@ -136,11 +174,10 @@ public class ChooseAreaFragment extends Fragment {
                         @Override
                         public void run() {
                             closeProgressDialog();
-                            Log.d(TAG, "run: close progress");
                             if ("province".equals(type)) {
                                 queryProvinces();
                             }else if ("city".equals(type)) {
-
+                                queryCities();
                             } else if ("county".equals(type)) {
 
                             }
@@ -151,6 +188,8 @@ public class ChooseAreaFragment extends Fragment {
             }
         });
     }
+
+
 
     /**
      * 显示进度对话框
